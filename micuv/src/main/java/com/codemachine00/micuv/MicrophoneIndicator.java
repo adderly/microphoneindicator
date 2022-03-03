@@ -37,7 +37,15 @@ public class MicrophoneIndicator extends View {
     final String AMP_ANIM_VALUE = "AMP_ANIM";
 
     private Handler handler;
-
+    final int SEGMENT_WIDTH = 60;
+    final float AMP_SUB = 46f;
+    private boolean IsInitialized = false;
+    private int spacing;
+    private int segmentHeight;
+    private int segmentColWidth;
+    private int segmentAmount;
+    private float ratioAmp;
+    private double ratioSegment;
 
 
     public MicrophoneIndicator(Context context) {
@@ -92,8 +100,6 @@ public class MicrophoneIndicator extends View {
         valueAnimator.start();
     }
 
-
-
     @SuppressLint("DrawAllocation")
     @Override
     protected void onDraw(Canvas canvas) {
@@ -103,50 +109,56 @@ public class MicrophoneIndicator extends View {
         paint.setTextSize(40);
         canvas.drawText(String.valueOf(lastAnimatedAmplitude), 45, 170, paint);
 
-        mPaddingLeft = getPaddingLeft();
-        mPaddingTop = getPaddingTop();
-        mPaddingRight = getPaddingRight();
-        mPaddingBottom = getPaddingBottom();
 
-        mContentWidth = getWidth() - mPaddingLeft - mPaddingRight;
-        mContentHeight = getHeight() - mPaddingTop - mPaddingBottom;
+        if (!IsInitialized) {
 
-        paint.setColor(Color.GREEN);
-        int segmentAmount = Math.max(mContentHeight, 1) / 12;
 
-        int spacing = 5;
-        int segmentHeight = (int) (mContentHeight  / segmentAmount);
-        int segmentWidth = 60;
-        int segmentColWidth = segmentWidth / 2;
+            mPaddingLeft = getPaddingLeft();
+            mPaddingTop = getPaddingTop();
+            mPaddingRight = getPaddingRight();
+            mPaddingBottom = getPaddingBottom();
 
-        double amplitude = (float) mContentHeight * targetAmplitude / AMP_MAX;
-        Log.d("amplitudeVal", String.valueOf(amplitude));
-        Log.d("amplitudeVal", "-> 1 " + String.valueOf(20 * (float)(Math.log10(targetAmplitude))));
-        Log.d("amplitudeVal", "-> 2 " + String.valueOf(MicroUtils.getNormalizedAmplitude(targetAmplitude)));
-        double decibel = MicroUtils.resizeNumber(MicroUtils.getRealDecibel(targetAmplitude));
-        Log.d("amplitudeVal", " decibel ->" + decibel);
+            mContentWidth = getWidth() - mPaddingLeft - mPaddingRight;
+            mContentHeight = getHeight() - mPaddingTop - mPaddingBottom;
 
-        //TODO: add this on initialization
+            paint.setColor(Color.GREEN);
+            segmentAmount = Math.max(mContentHeight, 1) / 12;
+
+            spacing = 5;
+            segmentHeight = (int) (mContentHeight  / segmentAmount);
+            segmentColWidth = SEGMENT_WIDTH / 2;
+
+            ratioAmp = 1/AMP_SUB;
+            ratioSegment = (double)1/segmentAmount;
+
+            IsInitialized =  true;
+        }
+
+
+//        double amplitude = (float) mContentHeight * targetAmplitude / AMP_MAX;
+//        Log.d("amplitudeVal", String.valueOf(amplitude));
+//        Log.d("amplitudeVal", "-> 1 " + String.valueOf(20 * (float)(Math.log10(targetAmplitude))));
+//        Log.d("amplitudeVal", "-> 2 " + String.valueOf(MicroUtils.getNormalizedAmplitude(targetAmplitude)));
+//        double decibel = MicroUtils.resizeNumber(MicroUtils.getRealDecibel(targetAmplitude));
+//        Log.d("amplitudeVal", " decibel ->" + decibel);
+
         float normalized = MicroUtils.getNormalizedAmplitude(targetAmplitude);
-        normalized = Math.max(normalized - 40f, 1f);
-        float ratioAmp = 1/40f;
-        double ratioSegment = (double)1/segmentAmount;
+        normalized = Math.max(normalized - AMP_SUB, 1f);
         double r = ratioSegment/ratioAmp;
 
         double drawSegmentAmount = normalized * r;
 
         for (int n = 0;n < drawSegmentAmount;n++) {
-            float percentage = (float)n / segmentAmount;
-//        Log.d("amplitudeVal2",  " percentage = "+String.valueOf(percentage) + " segment = "+ String.valueOf(segmentAmount));
+            float percentage = (float) n / segmentAmount;
+            //Log.d("amplitudeVal2",  " percentage = "+String.valueOf(percentage) + " segment = "+ String.valueOf(segmentAmount));
             if (percentage < 0.60) {
                 paint.setColor(Color.GREEN);
             } else if (percentage < 0.84) {
                 paint.setColor(Color.YELLOW);
             } else if (percentage > 0.84) {
                 paint.setColor(Color.RED);
-            } else {
-                paint.setColor(Color.RED);
             }
+
             int stepAmount = mContentHeight - n * segmentHeight;
             canvas.drawRect(
                     0,
