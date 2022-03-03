@@ -121,11 +121,21 @@ public class MicrophoneIndicator extends View {
 
         double amplitude = (float) mContentHeight * targetAmplitude / AMP_MAX;
         Log.d("amplitudeVal", String.valueOf(amplitude));
-        Log.d("amplitudeVal", "->" + String.valueOf(20 * (float)(Math.log10(targetAmplitude))));
+        Log.d("amplitudeVal", "-> 1 " + String.valueOf(20 * (float)(Math.log10(targetAmplitude))));
+        Log.d("amplitudeVal", "-> 2 " + String.valueOf(MicroUtils.getNormalizedAmplitude(targetAmplitude)));
         double decibel = MicroUtils.resizeNumber(MicroUtils.getRealDecibel(targetAmplitude));
         Log.d("amplitudeVal", " decibel ->" + decibel);
 
-        for (int n = 0;n < segmentAmount;n++) {
+        //TODO: add this on initialization
+        float normalized = MicroUtils.getNormalizedAmplitude(targetAmplitude);
+        normalized = Math.max(normalized - 40f, 1f);
+        float ratioAmp = 1/40f;
+        double ratioSegment = (double)1/segmentAmount;
+        double r = ratioSegment/ratioAmp;
+
+        double drawSegmentAmount = normalized * r;
+
+        for (int n = 0;n < drawSegmentAmount;n++) {
             float percentage = (float)n / segmentAmount;
 //        Log.d("amplitudeVal2",  " percentage = "+String.valueOf(percentage) + " segment = "+ String.valueOf(segmentAmount));
             if (percentage < 0.60) {
@@ -133,6 +143,8 @@ public class MicrophoneIndicator extends View {
             } else if (percentage < 0.84) {
                 paint.setColor(Color.YELLOW);
             } else if (percentage > 0.84) {
+                paint.setColor(Color.RED);
+            } else {
                 paint.setColor(Color.RED);
             }
             int stepAmount = mContentHeight - n * segmentHeight;
@@ -150,13 +162,6 @@ public class MicrophoneIndicator extends View {
                     paint);
         }
 
-        paint.setColor(Color.RED);
-        canvas.drawRect(
-                3,
-                (float) (mContentHeight - amplitude),
-                40,
-                mContentHeight,
-                paint);
 
         this.postInvalidateDelayed(1000 / FPS);
     }
