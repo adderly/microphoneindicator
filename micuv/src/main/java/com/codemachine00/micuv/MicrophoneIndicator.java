@@ -1,6 +1,6 @@
 package com.codemachine00.micuv;
 
-
+import android.animation.Animator;
 import android.animation.PropertyValuesHolder;
 import android.animation.ValueAnimator;
 import android.annotation.SuppressLint;
@@ -17,8 +17,10 @@ import android.view.animation.AccelerateDecelerateInterpolator;
 
 public class MicrophoneIndicator extends View {
 
-    protected int targetAmplitude = 0;
-    protected float lastAnimatedAmplitude = 0;
+    protected float targetAmplitude = 0;
+    private boolean targetAmplitudeNormalized;
+    protected float animatedSegmentAmount = 0;
+
     private Paint paint = new Paint();
     private int mContentHeight;
     private int mContentWidth;
@@ -38,7 +40,8 @@ public class MicrophoneIndicator extends View {
 
     private Handler handler;
     final int SEGMENT_WIDTH = 60;
-    final float AMP_SUB = 46f;
+    final float AMP_SUB = 48f;
+    final long ANIM_DURATION = 340;
     private boolean IsInitialized = false;
     private int spacing;
     private int segmentHeight;
@@ -70,32 +73,65 @@ public class MicrophoneIndicator extends View {
 
     public void setAmplitude(int ampl) {
         targetAmplitude = ampl;
+        targetAmplitudeNormalized = false;
         handler.post(() -> {
             animateValue(ampl);
         });
     }
 
-    protected void animateValue(int ampl) {
+    public void setAmplitude(float ampl, boolean isNormalized) {
+        targetAmplitude = ampl;
+        targetAmplitudeNormalized = isNormalized;
+        handler.post(() -> {
+            animateValue(ampl);
+        });
+    }
+
+    protected void animateValue(float ampl) {
         if (valueAnimator == null){
             valueAnimator = new ValueAnimator();
-            valueAnimator.setDuration(250);
+            valueAnimator.setDuration(ANIM_DURATION);
             valueAnimator.setInterpolator(new AccelerateDecelerateInterpolator());
-//            PropertyValuesHolder valHolder = PropertyValuesHolder.ofFloat(AMP_ANIM_VALUE, 0f, 100f);
-//            valueAnimator.setValues(valHolder);
-            valueAnimator.addUpdateListener( (animator) -> {
-                float animVal = (float) animator.getAnimatedValue();
-                lastAnimatedAmplitude = (float) animator.getAnimatedValue(AMP_ANIM_VALUE);
-//                lastAnimatedAmplitude = animVal;
-                Log.d("animatedValue = ", String.valueOf(animVal));
-                Log.d("lastanimatedAmplitude=", String.valueOf(lastAnimatedAmplitude));
-                invalidate();
+
+            valueAnimator.addListener(new Animator.AnimatorListener() {
+                @Override
+                public void onAnimationStart(Animator animator) {
+
+                }
+
+                @Override
+                public void onAnimationEnd(Animator animator) {
+//                    targetAmplitude = 0.0f;
+                }
+
+                @Override
+                public void onAnimationCancel(Animator animator) {
+
+                }
+
+                @Override
+                public void onAnimationRepeat(Animator animator) {
+
+                }
             });
 
-        }
-        else {
+
+            valueAnimator.addUpdateListener( (animator) -> {
+                animatedSegmentAmount = (float) animator.getAnimatedValue(AMP_ANIM_VALUE);
+                Log.d("lastanimatedAmplitude=", String.valueOf(animatedSegmentAmount));
+                invalidate();
+            });
+        } else {
             valueAnimator.cancel();
         }
-        PropertyValuesHolder valHolder = PropertyValuesHolder.ofFloat(AMP_ANIM_VALUE, ampl, 100f);
+
+        float normalized = targetAmplitudeNormalized ? targetAmplitude: MicroUtils.getNormalizedAmplitude((int)targetAmplitude);
+        normalized = Math.max(normalized - AMP_SUB, 1f);
+        double r = ratioSegment/ratioAmp;
+
+        float drawSegmentAmount = (float) (normalized * r);
+
+        PropertyValuesHolder valHolder = PropertyValuesHolder.ofFloat(AMP_ANIM_VALUE, animatedSegmentAmount, drawSegmentAmount);
         valueAnimator.setValues(valHolder);
         valueAnimator.start();
     }
@@ -106,13 +142,8 @@ public class MicrophoneIndicator extends View {
         super.onDraw(canvas);
 
         paint.setColor(Color.WHITE);
-        paint.setTextSize(40);
-        canvas.drawText(String.valueOf(lastAnimatedAmplitude), 45, 170, paint);
-
 
         if (!IsInitialized) {
-
-
             mPaddingLeft = getPaddingLeft();
             mPaddingTop = getPaddingTop();
             mPaddingRight = getPaddingRight();
@@ -134,15 +165,43 @@ public class MicrophoneIndicator extends View {
             IsInitialized =  true;
         }
 
+        DrawIndicatorAnimated(canvas);
+    }
 
-//        double amplitude = (float) mContentHeight * targetAmplitude / AMP_MAX;
-//        Log.d("amplitudeVal", String.valueOf(amplitude));
-//        Log.d("amplitudeVal", "-> 1 " + String.valueOf(20 * (float)(Math.log10(targetAmplitude))));
-//        Log.d("amplitudeVal", "-> 2 " + String.valueOf(MicroUtils.getNormalizedAmplitude(targetAmplitude)));
-//        double decibel = MicroUtils.resizeNumber(MicroUtils.getRealDecibel(targetAmplitude));
-//        Log.d("amplitudeVal", " decibel ->" + decibel);
+    private void DrawIndicatorAnimated(Canvas canvas) {
+        if (animatedSegmentAmount < 2.3f) return; //This value is insignificant
 
-        float normalized = MicroUtils.getNormalizedAmplitude(targetAmplitude);
+        for (int n = 0;n < animatedSegmentAmount;n++) {
+            float percentage = (float) n / segmentAmount;
+            //Log.d("amplitudeVal2",  " percentage = "+String.valueOf(percentage) + " segment = "+ String.valueOf(segmentAmount));
+            if (percentage < 0.60) {
+                paint.setColor(Color.GREEN);
+            } else if (percentage < 0.84) {
+                paint.setColor(Color.YELLOW);
+            } else if (percentage > 0.84) {
+                paint.setColor(Color.RED);
+            }
+
+            int stepAmount = mContentHeight - n * segmentHeight;
+            canvas.drawRect(
+                    0,
+                    stepAmount,
+                    segmentColWidth,
+                    stepAmount + segmentHeight - spacing,
+                    paint);
+            canvas.drawRect(
+                    segmentColWidth + spacing,
+                    stepAmount,
+                    segmentColWidth + segmentColWidth + spacing,
+                    stepAmount + segmentHeight - spacing,
+                    paint);
+        }
+
+    }
+
+
+    private void DrawIndictor(Canvas canvas) {
+        float normalized = targetAmplitudeNormalized ? targetAmplitude: MicroUtils.getNormalizedAmplitude((int)targetAmplitude);
         normalized = Math.max(normalized - AMP_SUB, 1f);
         double r = ratioSegment/ratioAmp;
 
@@ -173,12 +232,6 @@ public class MicrophoneIndicator extends View {
                     stepAmount + segmentHeight - spacing,
                     paint);
         }
-
-
-        this.postInvalidateDelayed(1000 / FPS);
-    }
-
-    private void DrawIndicatorLevels(Canvas canvas) {
 
     }
 }

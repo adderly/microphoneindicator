@@ -46,7 +46,8 @@ public class MainActivity extends AppCompatActivity {
         recorder = new RecorderHandler((byte[] buffer, int size) -> {
 //            int amplitude = MicroUtils.getAmplitudeFromBuffer(buffer, size);
             int amplitude = MicroUtils.getAmplitude(buffer);
-            indicator.setAmplitude(amplitude);
+            float normalized = MicroUtils.getNormalizedAmplitude(amplitude);
+            indicator.setAmplitude(normalized, true);
         });
 
         button.setOnClickListener(view -> {

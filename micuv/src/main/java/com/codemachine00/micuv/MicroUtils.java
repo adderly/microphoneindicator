@@ -103,8 +103,7 @@ public class MicroUtils {
     }
 
 
-
-    private static final float MAX_REPORTABLE_AMP = 32767f;
+    private static final float MAX_REPORTABLE_AMP = 42767f;
     private static final float MAX_REPORTABLE_DB = 90.3087f;
 
     public static float getNormalizedAmplitude(int rawAmplitude) {
